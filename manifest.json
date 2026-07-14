@@ -1,0 +1,15 @@
+{
+  "slug": "skill_design",
+  "kind": "skill",
+  "name": "Skill Design",
+  "description": "在创建 sayu 沙箱 skill 前，先研究真实工作与现有实现，产出最小化、可验证、带真实交付预览的设计方案包，止于确认门。",
+  "version": "v1",
+  "runtime_type": "python",
+  "entry_main": "SKILL.md",
+  "input_schema": {"type": "object", "properties": {}},
+  "dependencies": [],
+  "network_policy": "none",
+  "timeout_sec": 120,
+  "memory_mb": 1024,
+  "cpu_quota": 1.0
+}
