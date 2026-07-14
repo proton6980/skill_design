@@ -14,6 +14,17 @@ DEFAULT_ROOT = Path("/uploads/skill-design/示例")
 MANIFEST_VERSION = "1.0"
 SUBDIRS = ("proposal", "examples", "previews", "working")
 
+# 每个待填文件的一句用途提示 (与 references/skill-design-proposal-contract.md 对齐)。
+# scaffold 收尾把它们连同文件清单打进 stdout, 让 LLM 无需 ls/cat 探路即知道要写什么。
+FILE_HINTS = {
+    "proposal/skill-overview.md": "概述, 按序 11 个 heading(Skill 概述/行业与实现对标/用户与触发边界/输入维度/输出维度/保存位置与版本策略/依赖工具与资源/目标 Skill 最小化审计/示例策略/风险与待确认)",
+    "proposal/workflow-tool-map.md": "工作流表格 7 列: 步骤|输入/前置条件|动作|工具与调用模式(外部工具须 mode=)|阶段产物|验证|缺失/失败处理",
+    "proposal/deliverable-preview-index.md": "交付预览表 5 列: 交付物|真实示例文件(examples/ 下真实路径)|预览/检查文件|格式说明|模拟内容摘要",
+    "proposal/confirmation-questions.md": "创建前确认: ## 已确认 / ## 仍需用户决定 / ## 下一步选项(仅 修改·停止·打包为可上传的 skill 包)",
+    "working/sample-case.json": "5 个非空 key: user_need, domain, professional_context, deliverable_use_case, example_relevance_rationale",
+    "working/generation-notes.md": "过程记录: 来源材料/研究访问/builder/render 或回读检查/validator 命令/限制",
+}
+
 
 def normalize_slug(value: str) -> str:
     cleaned = value.strip()
@@ -147,11 +158,35 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    # 只打印 package_path(目录, isfile=False → 平台不回流)。
-    # 绝不打印 manifest.json 等单文件的 /uploads 路径, 否则 scaffold 中途就被产物回流机制
-    # 当成文件卡发给用户, 用户拿到的是空 manifest 而非最终 pack 的 zip。
-    # manifest 位置 = package_path/manifest.json, 无需单独打印。
-    print(json.dumps({"package_path": str(package_dir)}, ensure_ascii=False))
+    # 打印结构化指引: 让 LLM 无需 ls/find/cat 探路即知现状与下一步, 直接按清单逐个填文件。
+    # 回流安全: 只打印 package_path(目录, isfile=False) 与相对路径清单, 绝不打印任何
+    # /uploads 下的单文件真实路径 —— 否则被产物回流机制(_detect_output_file 取 stdout
+    # 最后一个 isfile 的 /uploads 路径)当文件卡中途发给用户, 拿到半成品而非最终 zip。
+    expected = manifest["expected_files"]
+    lines = [
+        "设计方案包已就绪: 目录与 manifest.json 均已创建。无需再用 ls/find/cat 探查环境 —— 完整清单如下。",
+        "",
+        f"package_path: {package_dir}",
+        "",
+        "逐个创建并填充以下文件(路径相对 package_path, 内容须实质、勿留 <占位符>/TODO/TBD):",
+    ]
+    for rel in expected.get("proposal", []):
+        lines.append(f"  {rel}  — {FILE_HINTS.get(rel, '')}")
+    for rel in expected.get("examples", []):
+        lines.append(f"  examples/{rel}  — 每个交付格式一个真实同扩展名示例文件(填真实案例数据/术语/内容密度)")
+    lines.append("  previews/  — 难检查格式(docx/xlsx/pdf)放渲染预览或检查笔记; 易检查格式(md/html)可留空")
+    for rel in expected.get("working", []):
+        lines.append(f"  {rel}  — {FILE_HINTS.get(rel, '')}")
+    lines += [
+        "",
+        "契约细则见 references/skill-design-proposal-contract.md。",
+        "",
+        "下一步(依次执行, 每步一次 run_script):",
+        "  1) 逐个写上面列出的文件",
+        f'  2) python scripts/validate_design_package.py "{package_dir}"',
+        f'  3) python scripts/pack_package.py "{package_dir}"   # 打成单个 zip 并打印其 /uploads/*.zip 路径回流给用户',
+    ]
+    print("\n".join(lines))
     return 0
 
 
