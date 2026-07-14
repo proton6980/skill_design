@@ -10,7 +10,7 @@ Every target skill designed here is a sayu 沙箱 skill — a zip package (`mani
 
 - **离线默认**：`manifest.network_policy` 默认 `none`（容器无外网）。仅当目标 skill 必须联网或需 pip 装包时才用 `open`，并同时提供 `requirements.txt`；`bridge_only` 与 `none` 对沙箱等价（都断外网）。
 - **只读根 + 三个可写目录**：容器根文件系统只读，只有 `/workspace/<slug>/`（skill 自身）、`/uploads/`（产物回流）、`/tmp/`（临时）可写。
-- **产物回流约定**：给用户的最终产物**必须**写到 `/uploads/` 下，并把绝对路径打印到 stdout（`platform_tools_run_script` 从 stdout 抓最后一个真实存在的 `/uploads/...` 路径生成文件卡）。中间文件用 `/tmp/`。
+- **产物回流约定（单文件）**：`platform_tools_run_script` 只从 stdout 抓**最后一个真实存在的单个文件**（`isfile` 为真）的 `/uploads/...` 路径生成文件卡——**目录不产卡**。因此多文件产物（如本 skill 的设计方案包）**必须先打成一个 zip**（用 `scripts/pack_package.py`，沙箱无 `zip` CLI，脚本走 stdlib zipfile），再打印该 zip 的 `/uploads/...` 绝对路径。设计目标 skill 时同理：若目标 skill 交付多文件，其收尾脚本也应 zip 成单文件回流。中间文件用 `/tmp/`。
 - **相对脚本调用**：`run_script` 的工作目录已在 `/workspace/<slug>/`，脚本一律相对路径调用（`python scripts/x.py`）。
 - **基础镜像预装库**（免在 `dependencies`/`requirements.txt` 里声明）：Python 3.11 + `python-docx`/`openpyxl`/`python-pptx`/`pypdf`/`pymupdf`/`Pillow`/`pandas`/`requests`/`lxml`/`beautifulsoup4`/`markdown`/`pdfplumber`/`reportlab`/`pdf2image`/`defusedxml`/`pypdfium2`，系统 `poppler-utils`(`pdftoppm`)/`qpdf`/`curl`。只有超出此清单的库才需 `requirements.txt` + `network_policy=open`。
 - **secret 声明**：目标 skill 需要的密钥在 `manifest.secrets[]` 里声明（`{key,label,required,doc}`，`key` 匹配 `^[A-Z_][A-Z0-9_]*$`）；值由平台密钥池或按挂载配置注入为容器 env，不写进包。

@@ -3,7 +3,9 @@ name: skill-design
 description: Use when you need to design a new sayu 沙箱 skill or redesign an existing one before creation, especially when the workflow, tool contracts, resource minimality, realistic deliverables, version plan, or confirmation boundary must be resolved first.
 ---
 
-> **Sandbox 环境说明 (sayu)**：本 skill 跑在离线 Python 3.11 沙箱，通过「运行脚本」(`platform_tools_run_script`) 工具执行——你传 `skill` 名 + `command`，工作目录已切到本 skill 根 `/workspace/skill_design/`，所有脚本用相对路径调用（`python scripts/scaffold_example_package.py …`、`python scripts/validate_design_package.py …`），**不要**用绝对路径。**可用**：纯标准库脚本，离线可跑，无需装包。**产物回流**：设计方案包写到 `/uploads/skill-design/…` 下，并在 stdout 打印其路径（脚本已打印 `package_path`），否则用户拿不到文件。中间产物可用 `/tmp/`。
+> **Sandbox 环境说明 (sayu)**：本 skill 跑在离线 Python 3.11 沙箱，通过「运行脚本」(`platform_tools_run_script`) 工具执行——你传 `skill` 名 + `command`，工作目录已切到本 skill 根 `/workspace/skill_design/`，所有脚本用相对路径调用，**不要**用绝对路径。**可用**：纯标准库脚本，离线可跑，无需装包。**始终走本 skill 自带脚本**（`scaffold_example_package.py` / `validate_design_package.py` / `pack_package.py`）生成、校验、打包，**不要**手拼 shell 逐个写文件（易在引号转义上炸）。中间产物可用 `/tmp/`。
+>
+> **产物回流（关键，做错用户一个文件都收不到）**：平台只回流 stdout 里的**单个真实文件**（`isfile` 为真）——**打印目录不产卡**，`package_path` 目录路径没用。设计方案包是多文件目录，收尾**必须**用 `python scripts/pack_package.py <包目录>` 打成一个 zip，并让 stdout 的最后一行是那个 **zip 的 `/uploads/...` 绝对路径**（脚本已只打印它）。沙箱**无 `zip` CLI**，只能用该脚本（stdlib zipfile）。一个 zip = 一张文件卡，用户下载解压即整包。
 
 # Skill Design
 
@@ -29,7 +31,8 @@ This skill stops at design. It never creates, updates, installs, publishes, or u
 6. **Specify the workflow and tools.** Give every step inputs, action, stage output, validation, and failure handling. Use `无` for judgment-only steps. External tools the target skill uses are declared as `platform_tools_*` slugs in `manifest.dependencies`; each workflow row names the callable with an explicit `mode=` and satisfies the sandbox-script/artifact, web/browser, and media contracts in the reference.
 7. **Scaffold and write.** After research passes, run `python scripts/scaffold_example_package.py` with target extensions. Fill the complete package and realistic 1:1 examples from a domain-relevant case.
 8. **Validate.** Inspect rendered or reopened artifacts, replace manifest placeholders, and run `python scripts/validate_design_package.py <package>`. For a response draft, also pass `--final-response <path>`.
-9. **Present the confirmation gate.** Show `Skill 概述`, `工作流步骤与工具`, `最终交付示例文件`, and `确认门` in that order. Offer only `修改`, `停止`, or `打包为可上传的 skill 包`, then stop.
+9. **Package for delivery.** Run `python scripts/pack_package.py <package>` to zip the whole design package into one file, and print the single `/uploads/...zip` path it emits — this is what the platform reflows into a downloadable file card. Do **not** print the package directory path; a directory does not reflow.
+10. **Present the confirmation gate.** Show `Skill 概述`, `工作流步骤与工具`, `最终交付示例文件`, and `确认门` in that order. Offer only `修改`, `停止`, or `打包为可上传的 skill 包`, then stop.
 
 ## Contract Gate
 
