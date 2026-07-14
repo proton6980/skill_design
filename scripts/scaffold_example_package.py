@@ -147,12 +147,11 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    print(
-        json.dumps(
-            {"package_path": str(package_dir), "manifest_path": str(manifest_path)},
-            ensure_ascii=False,
-        )
-    )
+    # 只打印 package_path(目录, isfile=False → 平台不回流)。
+    # 绝不打印 manifest.json 等单文件的 /uploads 路径, 否则 scaffold 中途就被产物回流机制
+    # 当成文件卡发给用户, 用户拿到的是空 manifest 而非最终 pack 的 zip。
+    # manifest 位置 = package_path/manifest.json, 无需单独打印。
+    print(json.dumps({"package_path": str(package_dir)}, ensure_ascii=False))
     return 0
 
 
