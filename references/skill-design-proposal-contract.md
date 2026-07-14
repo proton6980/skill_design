@@ -25,7 +25,7 @@ Research in this order:
 3. Existing Agent, Skill, and tool implementations.
 4. Transfer observations into mechanisms, always stating the conditions under which each mechanism applies and the concrete effect on the target skill.
 
-Public research is mandatory by default. Record exactly one status under `## 行业与实现对标`:
+Default to `exempt_with_reason`（理由：sayu 沙箱 skill 设计是完全内部的任务，本地契约与既有 skill 已是充分证据）。只有当用户明确要求对标，或目标 skill 的专业领域确实需要公开工作流证据时，才升级为 `completed` 做外部检索——不要为一个内部设计任务默认烧一轮 `platform_tools_duckduckgo`。Record exactly one status under `## 行业与实现对标`:
 
 - `对标状态：completed`: requires the exact benchmark table below, including at least one `行业工作流` row and one `Agent/Skill 实现` row. Both required rows must cite an `http://` or `https://` source.
 - `对标状态：exempt_with_reason`: allowed only when the user forbids web access, the work is fully internal, or local evidence is already sufficient. It requires substantive `豁免理由：` and `本地证据：` entries.

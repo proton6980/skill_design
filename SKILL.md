@@ -5,6 +5,10 @@ description: Use when you need to design a new sayu 沙箱 skill or redesign an 
 
 > **Sandbox 环境说明 (sayu)**：本 skill 跑在离线 Python 3.11 沙箱，通过「运行脚本」(`platform_tools_run_script`) 工具执行——你传 `skill` 名 + `command`，工作目录已切到本 skill 根 `/workspace/skill_design/`，所有脚本用相对路径调用，**不要**用绝对路径。**可用**：纯标准库脚本，离线可跑，无需装包。**始终走本 skill 自带脚本**（`scaffold_example_package.py` / `validate_design_package.py` / `pack_package.py`）生成、校验、打包，**不要**手拼 shell 逐个写文件（易在引号转义上炸）。中间产物可用 `/tmp/`。
 >
+> **读自带 references 用 `cat`，不要用 `read_document`**：本 skill 自带的契约/参考在 `/workspace/skill_design/references/`，用 `run_script` 的 `cat references/skill-design-proposal-contract.md` 读。`read_document` 只认用户上传目录，读自带文件**必被拒**（白烧一轮）。
+>
+> **外部搜索默认跳过**：这是内部设计任务，`platform_tools_duckduckgo` 等外部检索**默认不做**（对标状态用 `exempt_with_reason`，理由：完全内部）。仅当用户明确要求对标、或目标领域确需公开证据时才检索。默认路径直接：读契约 → scaffold → 写各文件内容 → validate → pack 打 zip。
+>
 > **产物回流（关键，做错用户一个文件都收不到）**：平台只回流 stdout 里的**单个真实文件**（`isfile` 为真）——**打印目录不产卡**，`package_path` 目录路径没用。设计方案包是多文件目录，收尾**必须**用 `python scripts/pack_package.py <包目录>` 打成一个 zip，并让 stdout 的最后一行是那个 **zip 的 `/uploads/...` 绝对路径**（脚本已只打印它）。沙箱**无 `zip` CLI**，只能用该脚本（stdlib zipfile）。一个 zip = 一张文件卡，用户下载解压即整包。
 
 # Skill Design
@@ -15,7 +19,7 @@ This skill stops at design. It never creates, updates, installs, publishes, or u
 
 ## Required Boundaries
 
-- Read `references/skill-design-proposal-contract.md` before writing a package.
+- Read `references/skill-design-proposal-contract.md` before writing a package — via `run_script` 的 `cat references/skill-design-proposal-contract.md`（**不要** `read_document`）。
 - Save design packages only under `/uploads/skill-design/<target-skill-family>/<target-skill-name>/<YYYY-MM-DD>-<case-slug>/`.
 - Use the same fixed package for `全新 skill` and `重新设计已有 skill`; a redesign is not a change log.
 - Do not scaffold a full package until the use case, professional context, audience, deliverables, location, version, and preservation policy are clear.
@@ -24,7 +28,7 @@ This skill stops at design. It never creates, updates, installs, publishes, or u
 ## Ordered Workflow
 
 1. **Ground and frame.** Inspect project rules, supplied materials, existing versions and outputs, and active invocation state. Confirm goal, trigger boundaries, inputs, final users, formats, location, version, and preservation.
-2. **Research before designing.** Examine, in order: user/local materials and real successes or failures; public industry standards and workflows; existing Agent, Skill, and tool implementations. Convert observations into transferable mechanisms with applicability conditions. Public research is required by default; use only the contract-defined `completed`, `exempt_with_reason`, or `blocked` status.
+2. **Research before designing.** Examine user/local materials, the bundled contract, and existing sayu skills first. External web research (`platform_tools_duckduckgo`) is **default-skipped** for these internal tasks — use `对标状态：exempt_with_reason`（完全内部）unless the user explicitly asks for benchmarking or the target domain genuinely needs public workflow evidence, then use `completed`. Convert observations into transferable mechanisms with applicability conditions.
 3. **Choose mode and version.** For a redesign, inspect the complete current skill, preserve it, and propose the next two-part version. Put current state and `保留 / 调整 / 删除` decisions in the full proposal.
 4. **Minimize the target.** Start from one substantive `SKILL.md` plus the sayu-required `manifest.json`. Add a target `scripts/`, `references/`, `assets/`, `requirements.txt`, field group, or output format only when the minimality audit identifies its unique consumer and why it cannot be inlined or merged.
 5. **Decide the example strategy.** Choose `none`, `inline`, or `separate_resource`. Package files under `examples/` do not imply a target-skill example resource.
