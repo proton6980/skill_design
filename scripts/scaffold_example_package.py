@@ -26,7 +26,7 @@ FILE_HINTS = {
     "working/sample-case.json": "5 个非空 key: user_need, domain, professional_context, deliverable_use_case, example_relevance_rationale",
     "working/generation-notes.md": "过程记录: 来源材料/研究访问/builder/render 或回读检查/validator 命令/限制",
     "target/SKILL.md": "★可上传目标 skill 的真实 SKILL.md —— 注入运行时 system prompt 的工作流入口, 实质内容、勿留 <占位符>/TODO/TBD(pack 会校验)",
-    "target/manifest.json": "★可上传目标 skill 的合法 sayu manifest —— 已种合法骨架, 按设计改 name/description/dependencies/network_policy/secrets/deliverable, 别动 kind/entry_main",
+    "target/manifest.json": "★可上传目标 skill 的合法 sayu manifest —— 已种合法骨架, 按设计改 name/description/dependencies/network_policy/secrets/deliverable; 别动 kind/entry_main/runtime_type —— runtime_type 是沙箱运行时(只能 python/node/shell/custom), 提示词 skill=python+entry_main=SKILL.md, 绝不要写 prompt/md 等(会被 sayu 上传校验拒)",
 }
 
 

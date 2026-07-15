@@ -60,7 +60,7 @@ Required contents:
 - `manifest.json`（设计包自身元数据：`target_skill_family`/`expected_files`/`deliverable_types` 等，**不是**目标 skill 的 manifest）
 
 **★可上传的目标 skill（`target/` —— `pack_skill_package.py` 只打这一层）**
-- `target/manifest.json`：目标 skill 的**合法 sayu skill manifest**（scaffold 已种合法骨架）。必填 `slug`(`^[a-z][a-z0-9_-]{1,62}$`)/`kind=skill`/`name`/`version`/`runtime_type`/`entry_main=SKILL.md`；按设计细化 `description`/`dependencies`(`platform_tools_*` slug)/`network_policy`/`secrets[]`/资源配额。见 `## 设计包 manifest.json` 下方对目标 manifest 的字段约束。
+- `target/manifest.json`：目标 skill 的**合法 sayu skill manifest**（scaffold 已种合法骨架）。必填 `slug`(`^[a-z][a-z0-9_-]{1,62}$`)/`kind=skill`/`name`/`version`/`runtime_type`/`entry_main=SKILL.md`；按设计细化 `description`/`dependencies`(`platform_tools_*` slug)/`network_policy`/`secrets[]`/资源配额。**`runtime_type` 只能是 `python`/`node`/`shell`/`custom`（沙箱运行时，不是 skill 的性质）——提示词 skill（纯 `SKILL.md`）保持 `python`+`entry_main=SKILL.md`，绝不要写 `prompt`/`md` 等非法值（sayu 上传校验会拒）。** 见 `## 设计包 manifest.json` 下方对目标 manifest 的字段约束。
 - `target/SKILL.md`：目标 skill 的真实工作流入口（注入运行时 system prompt），实质内容、无占位符。
 - `target/scripts/…`、`target/references/…`、`target/assets/…`、`target/requirements.txt`：**仅当**最小化审计判定目标 skill 确需时才加（默认只有 `SKILL.md` + `manifest.json`）。
 
