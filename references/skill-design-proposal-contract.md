@@ -48,6 +48,7 @@ Use the same package for `全新 skill` and `重新设计已有 skill`:
 
 Required contents:
 
+**设计记录（不进可上传 zip）**
 - `proposal/skill-overview.md`
 - `proposal/workflow-tool-map.md`
 - `proposal/deliverable-preview-index.md`
@@ -56,17 +57,22 @@ Required contents:
 - `previews/` containing rendered previews, screenshots, exported review files, or inspection notes
 - `working/sample-case.json`
 - `working/generation-notes.md`
-- `manifest.json`
+- `manifest.json`（设计包自身元数据：`target_skill_family`/`expected_files`/`deliverable_types` 等，**不是**目标 skill 的 manifest）
 
-The package support folders are not target-skill resources. In particular, files under the package's `examples/` never imply that the future target skill should bundle example files.
+**★可上传的目标 skill（`target/` —— `pack_skill_package.py` 只打这一层）**
+- `target/manifest.json`：目标 skill 的**合法 sayu skill manifest**（scaffold 已种合法骨架）。必填 `slug`(`^[a-z][a-z0-9_-]{1,62}$`)/`kind=skill`/`name`/`version`/`runtime_type`/`entry_main=SKILL.md`；按设计细化 `description`/`dependencies`(`platform_tools_*` slug)/`network_policy`/`secrets[]`/资源配额。见 `## 设计包 manifest.json` 下方对目标 manifest 的字段约束。
+- `target/SKILL.md`：目标 skill 的真实工作流入口（注入运行时 system prompt），实质内容、无占位符。
+- `target/scripts/…`、`target/references/…`、`target/assets/…`、`target/requirements.txt`：**仅当**最小化审计判定目标 skill 确需时才加（默认只有 `SKILL.md` + `manifest.json`）。
+
+The design-record folders are not target-skill resources. In particular, files under the package's `examples/` never imply that the target skill should bundle example files. Only `target/` contents are packed into the uploadable skill zip (root-level layout, fixed timestamp).
 
 After the research gate passes, scaffold with:
 
 ```bash
-python scripts/scaffold_example_package.py <target-skill-family> <target-skill-name> "<case-name>" --deliverables docx,xlsx,html
+python scripts/scaffold_example_package.py <target-skill-family> <target-skill-name> "<case-name>" --deliverables docx,xlsx,html [--target-slug <slug>] [--target-name "<name>"]
 ```
 
-Adjust `--deliverables` to the proposed target outputs. Replace every manifest `<role>.<ext>` placeholder before full validation.
+Adjust `--deliverables` to the proposed target outputs. Replace every manifest `<role>.<ext>` placeholder before full validation. Fill `target/SKILL.md` and finalize `target/manifest.json` before packing.
 
 ## `proposal/skill-overview.md`
 
@@ -270,7 +276,9 @@ The next-step options are exactly:
 - `停止`
 - `打包为可上传的 skill 包`
 
-This skill does not continue into target creation after the user chooses the handoff option. 在 sayu，创建是后续的带外步骤：把设计好的 skill 目录（`manifest.json` + `SKILL.md` + `scripts/` …）打成 zip，经 `POST /admin/skills/upload` 上传，或走开发者门户 / GitHub 导入；在 `manifest` 声明 `dependencies` 与 `network_policy`，按需配置 `secrets[]`（平台密钥池 `POST /admin/platform-secrets` 或按挂载 `PUT /dev/agents/{a}/capabilities/{c}/secrets`）；`test-run` 通过后 `publish`。**无生成式 skill-creator。**
+用户选 `打包为可上传的 skill 包` 后，run `python scripts/pack_skill_package.py <package>` —— 它只打 `target/`（目标 skill 真实文件）成**根级布局、固定时间戳**的 zip，打印其 `/uploads/...zip` 路径回流。**这个 zip 即可直接被 sayu 上传/导入成 skill**（根级 `manifest.json` + `SKILL.md`，对齐 `ManifestParser` / `CapabilityZipExtractor` 的期望）。
+
+本 skill 到「产出可上传 zip」为止，**不自行注册/上传/发布**目标 skill —— 那是带外步骤：平台在开发者「挂载」时把该 zip 导入为**用户私有 skill**（owner-scoped，`test-run` 通过后 `private_ready`），或经 `POST /admin/skills/upload` / 开发者门户 / GitHub 导入。`secrets[]` 由平台密钥池或按挂载配置注入，不写进包。
 
 ## 设计包 `manifest.json`
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Create a skill-design example package without creating a target skill."""
+"""Scaffold a skill-design package: design record (proposal/examples/…) + the real
+uploadable target skill under target/ (manifest.json + SKILL.md [+ scripts/])."""
 
 from __future__ import annotations
 
@@ -12,7 +13,8 @@ from pathlib import Path
 
 DEFAULT_ROOT = Path("/uploads/skill-design/示例")
 MANIFEST_VERSION = "1.0"
-SUBDIRS = ("proposal", "examples", "previews", "working")
+# target/ 存「可上传的目标 skill」真实文件(pack_skill_package.py 打成根级 zip); 其余是设计记录。
+SUBDIRS = ("proposal", "examples", "previews", "working", "target")
 
 # 每个待填文件的一句用途提示 (与 references/skill-design-proposal-contract.md 对齐)。
 # scaffold 收尾把它们连同文件清单打进 stdout, 让 LLM 无需 ls/cat 探路即知道要写什么。
@@ -23,6 +25,8 @@ FILE_HINTS = {
     "proposal/confirmation-questions.md": "创建前确认: ## 已确认 / ## 仍需用户决定 / ## 下一步选项(仅 修改·停止·打包为可上传的 skill 包)",
     "working/sample-case.json": "5 个非空 key: user_need, domain, professional_context, deliverable_use_case, example_relevance_rationale",
     "working/generation-notes.md": "过程记录: 来源材料/研究访问/builder/render 或回读检查/validator 命令/限制",
+    "target/SKILL.md": "★可上传目标 skill 的真实 SKILL.md —— 注入运行时 system prompt 的工作流入口, 实质内容、勿留 <占位符>/TODO/TBD(pack 会校验)",
+    "target/manifest.json": "★可上传目标 skill 的合法 sayu manifest —— 已种合法骨架, 按设计改 name/description/dependencies/network_policy/secrets/deliverable, 别动 kind/entry_main",
 }
 
 
@@ -33,6 +37,20 @@ def normalize_slug(value: str) -> str:
     cleaned = re.sub(r"-{2,}", "-", cleaned)
     cleaned = cleaned.strip("-. ")
     return cleaned or "case"
+
+
+def sayu_slug(value: str) -> str:
+    """目标 skill 的 sayu 合法 slug: ^[a-z][a-z0-9_-]{1,62}$ (小写字母开头)。
+
+    非法值由后端私有导入时可再改(软同步), 这里只保证种出的骨架 manifest 合法、pack 不炸。
+    """
+    s = re.sub(r"[^a-z0-9_-]+", "-", value.strip().lower())
+    s = re.sub(r"-{2,}", "-", s).strip("-_")
+    if not s:
+        s = "skill"
+    if not ("a" <= s[0] <= "z"):
+        s = "s-" + s
+    return s[:63]
 
 
 def parse_deliverables(raw: str) -> list[str]:
@@ -79,6 +97,7 @@ def build_manifest(
             "examples": "examples/",
             "previews": "previews/",
             "working": "working/",
+            "target": "target/",
         },
         "deliverable_types": deliverables,
         "expected_files": {
@@ -94,18 +113,45 @@ def build_manifest(
                 "working/sample-case.json",
                 "working/generation-notes.md",
             ],
+            "target": [
+                "target/SKILL.md",
+                "target/manifest.json",
+            ],
         },
         "validation_notes": [
-            "This package scaffolds design examples only.",
+            "proposal/examples/previews/working 是设计记录; target/ 才是可上传的目标 skill。",
             "Complete the research gate before filling a full package.",
-            "Do not create or edit the target skill from this script.",
+            "pack_skill_package.py 只打 target/ 成根级可上传 zip。",
         ],
+    }
+
+
+def build_target_manifest(slug: str, name: str, description: str) -> dict:
+    """可上传目标 skill 的合法 sayu manifest 骨架(对齐 ManifestParser 必填字段)。
+
+    必填: slug/kind/name/version/runtime_type/entry_main(skill 须 .md)。其余给安全默认,
+    LLM 按设计改 description/dependencies(platform_tools_* slug)/network_policy/secrets 等。
+    """
+    return {
+        "slug": slug,
+        "kind": "skill",
+        "name": name,
+        "description": description,
+        "version": "v1",
+        "runtime_type": "python",
+        "entry_main": "SKILL.md",
+        "input_schema": {"type": "object", "properties": {}},
+        "dependencies": [],
+        "network_policy": "none",
+        "timeout_sec": 120,
+        "memory_mb": 1024,
+        "cpu_quota": 1.0,
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Create a standardized example package for skill-design proposals."
+        description="Scaffold a skill-design package (design record + uploadable target skill)."
     )
     parser.add_argument("target_skill_family", help="Target base skill family, e.g. ppt-brief")
     parser.add_argument("target_skill_name", help="Target version folder name, e.g. ppt-brief-v1-8")
@@ -126,6 +172,16 @@ def main() -> int:
         help="Comma-separated deliverable extensions, e.g. docx,xlsx,html",
     )
     parser.add_argument(
+        "--target-slug",
+        default="",
+        help="可上传目标 skill 的 slug(缺省从 target_skill_family 推)。^[a-z][a-z0-9_-]{1,62}$",
+    )
+    parser.add_argument(
+        "--target-name",
+        default="",
+        help="可上传目标 skill 的展示名(缺省用 target_skill_family)。",
+    )
+    parser.add_argument(
         "--reuse",
         action="store_true",
         help="Reuse the exact package path if it already exists instead of creating -02.",
@@ -136,6 +192,8 @@ def main() -> int:
     target_skill_name = normalize_slug(args.target_skill_name)
     case_slug = normalize_slug(args.case_name)
     deliverables = parse_deliverables(args.deliverables)
+    target_slug = sayu_slug(args.target_slug or args.target_skill_family)
+    target_name = (args.target_name or args.target_skill_family).strip() or target_slug
 
     root = Path(args.root).expanduser()
     base_package_dir = root / target_family / target_skill_name / f"{args.date}-{case_slug}"
@@ -158,17 +216,36 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    # 种可上传目标 skill 的合法 manifest 骨架(LLM 按设计细化, 但保证一开始就合法)。
+    target_manifest_path = package_dir / "target" / "manifest.json"
+    target_manifest_path.write_text(
+        json.dumps(
+            build_target_manifest(
+                target_slug,
+                target_name,
+                "根据本设计沉淀的可复用 sayu 沙箱 skill。",
+            ),
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     # 打印结构化指引: 让 LLM 无需 ls/find/cat 探路即知现状与下一步, 直接按清单逐个填文件。
     # 回流安全: 只打印 package_path(目录, isfile=False) 与相对路径清单, 绝不打印任何
     # /uploads 下的单文件真实路径 —— 否则被产物回流机制(_detect_output_file 取 stdout
     # 最后一个 isfile 的 /uploads 路径)当文件卡中途发给用户, 拿到半成品而非最终 zip。
     expected = manifest["expected_files"]
     lines = [
-        "设计方案包已就绪: 目录与 manifest.json 均已创建。无需再用 ls/find/cat 探查环境 —— 完整清单如下。",
+        "设计方案包已就绪: 目录 + 设计 manifest.json + target/manifest.json(合法骨架) 均已创建。无需再用 ls/find/cat 探查环境 —— 完整清单如下。",
         "",
         f"package_path: {package_dir}",
+        f"target_slug: {target_slug}   # 可上传目标 skill 的 slug",
         "",
         "逐个创建并填充以下文件(路径相对 package_path, 内容须实质、勿留 <占位符>/TODO/TBD):",
+        "",
+        "【设计记录】",
     ]
     for rel in expected.get("proposal", []):
         lines.append(f"  {rel}  — {FILE_HINTS.get(rel, '')}")
@@ -177,14 +254,20 @@ def main() -> int:
     lines.append("  previews/  — 难检查格式(docx/xlsx/pdf)放渲染预览或检查笔记; 易检查格式(md/html)可留空")
     for rel in expected.get("working", []):
         lines.append(f"  {rel}  — {FILE_HINTS.get(rel, '')}")
+    lines += ["", "【★可上传目标 skill —— pack_skill_package.py 只打这个目录】"]
+    for rel in expected.get("target", []):
+        lines.append(f"  {rel}  — {FILE_HINTS.get(rel, '')}")
+    lines.append("  target/scripts/…, target/references/…, target/requirements.txt  — 仅当最小化审计判定目标 skill 确需(默认不建)")
     lines += [
         "",
         "契约细则见 references/skill-design-proposal-contract.md。",
         "",
         "下一步(依次执行, 每步一次 run_script):",
-        "  1) 逐个写上面列出的文件",
+        "  1) 逐个写上面列出的文件(含 target/SKILL.md 与细化 target/manifest.json)",
         f'  2) python scripts/validate_design_package.py "{package_dir}"',
-        f'  3) python scripts/pack_package.py "{package_dir}"   # 打成单个 zip 并打印其 /uploads/*.zip 路径回流给用户',
+        "  3) 呈现确认门(Skill 概述 / 工作流步骤与工具 / 最终交付示例 / 确认门: 修改·停止·打包为可上传的 skill 包), 然后停",
+        f'  4) 用户选「打包为可上传的 skill 包」后: python scripts/pack_skill_package.py "{package_dir}"',
+        "     # 只打 target/ 成根级、可直接上传的 skill zip, 并打印其 /uploads/*.zip 路径回流(这就是可用 skill 包)",
     ]
     print("\n".join(lines))
     return 0
