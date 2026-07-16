@@ -265,9 +265,9 @@ def main() -> int:
         "下一步(依次执行, 每步一次 run_script):",
         "  1) 逐个写上面列出的文件(含 target/SKILL.md 与细化 target/manifest.json)",
         f'  2) python scripts/validate_design_package.py "{package_dir}"',
-        "  3) 呈现确认门(Skill 概述 / 工作流步骤与工具 / 最终交付示例 / 确认门: 修改·停止·打包为可上传的 skill 包), 然后停",
-        f'  4) 用户选「打包为可上传的 skill 包」后: python scripts/pack_skill_package.py "{package_dir}"',
+        f'  3) validate 通过即打包(无确认门): python scripts/pack_skill_package.py "{package_dir}"',
         "     # 只打 target/ 成根级、可直接上传的 skill zip, 并打印其 /uploads/*.zip 路径回流(这就是可用 skill 包)",
+        "  4) 呈现结果(Skill 概述 / 工作流步骤与工具 / 最终交付示例文件 / 产物与下一步: 末行 zip 路径), 不停下等确认",
     ]
     print("\n".join(lines))
     return 0

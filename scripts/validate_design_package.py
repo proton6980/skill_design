@@ -36,7 +36,7 @@ FINAL_HEADINGS = (
     "Skill 概述",
     "工作流步骤与工具",
     "最终交付示例文件",
-    "确认门",
+    "产物与下一步",
 )
 REDESIGN_VERSION_FIELDS = (
     "当前版本",
@@ -1463,7 +1463,7 @@ def validate_final_response(
     if all(position >= 0 for position in positions) and positions != sorted(positions):
         errors.append("final response headings are not in the required order")
 
-    deliverable_section = section_between(text, "最终交付示例文件", "确认门")
+    deliverable_section = section_between(text, "最终交付示例文件", "产物与下一步")
     if deliverable_section:
         visible_deliverable_section = strip_html_comments(deliverable_section)
         example_paths = relative_paths_in_cell(visible_deliverable_section, "examples")
@@ -1480,13 +1480,7 @@ def validate_final_response(
             if pattern in visible_deliverable_section:
                 errors.append(f"final deliverable section lists support file: {pattern}")
 
-    confirmation_section = heading_tail(text, "确认门")
-    if confirmation_section:
-        validate_exact_option_section(
-            confirmation_section,
-            "final response confirmation gate",
-            errors,
-        )
+    # 无确认门: 末节 产物与下一步 只需存在(上面已校验 heading), 不再校验固定选项。
 
 
 def main() -> int:

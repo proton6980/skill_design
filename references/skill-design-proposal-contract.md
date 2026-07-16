@@ -270,13 +270,15 @@ Use this order:
 3. `## 仍需用户决定`
 4. `## 下一步选项`
 
+> **说明**：本文件是**设计记录归档**（记录已确认 / 待决 / 历史选项），**不再是聊天流程的停止点**——`validate` 通过后**直接打包**。下方 `下一步选项` 三项为固定归档字段（校验器要求原样保留），运行时**不据此停下等确认**。
+
 The next-step options are exactly:
 
 - `修改`
 - `停止`
 - `打包为可上传的 skill 包`
 
-用户选 `打包为可上传的 skill 包` 后，run `python scripts/pack_skill_package.py <package>` —— 它只打 `target/`（目标 skill 真实文件）成**根级布局、固定时间戳**的 zip，打印其 `/uploads/...zip` 路径回流。**这个 zip 即可直接被 sayu 上传/导入成 skill**（根级 `manifest.json` + `SKILL.md`，对齐 `ManifestParser` / `CapabilityZipExtractor` 的期望）。
+`validate` 通过后**直接** run `python scripts/pack_skill_package.py <package>`（无需用户在此确认）—— 它只打 `target/`（目标 skill 真实文件）成**根级布局、固定时间戳**的 zip，打印其 `/uploads/...zip` 路径回流。**这个 zip 即可直接被 sayu 上传/导入成 skill**（根级 `manifest.json` + `SKILL.md`，对齐 `ManifestParser` / `CapabilityZipExtractor` 的期望）。
 
 本 skill 到「产出可上传 zip」为止，**不自行注册/上传/发布**目标 skill —— 那是带外步骤：平台在开发者「挂载」时把该 zip 导入为**用户私有 skill**（owner-scoped，`test-run` 通过后 `private_ready`），或经 `POST /admin/skills/upload` / 开发者门户 / GitHub 导入。`secrets[]` 由平台密钥池或按挂载配置注入，不写进包。
 
@@ -343,15 +345,15 @@ The final user-facing response uses these headings in order:
 1. `Skill 概述`
 2. `工作流步骤与工具`
 3. `最终交付示例文件`
-4. `确认门`
+4. `产物与下一步`
 
 Rules:
 
 - Summarize the target design, not the design work log.
 - Show the complete proposed execution flow and concrete tool modes, including initial need analysis.
 - Under `最终交付示例文件`, link only real target deliverables under `examples/`, state their formats, and explain their relevance. Label proposal links separately as design-package references.
-- Under `确认门`, offer only `修改`, `停止`, or `打包为可上传的 skill 包`.
-- Stop at the gate.
+- Under `产物与下一步`, 说明可上传 skill zip **已打包**（末行是它的 `/uploads/...zip` 路径），并说明用户在 sayu 端点「挂载」时会把它导入为用户私有 skill。
+- **不设确认门、不停下等确认**——`validate` 通过即打包，本轮直接给出结果与 zip 路径。
 
 ## Self-Check
 
@@ -366,4 +368,4 @@ Rules:
 - Every declared deliverable has a realistic same-extension example and review evidence.
 - Redesigns contain current state, version and 上线版本 fields, preservation, and `保留 / 调整 / 删除` decisions.
 - No unfinished markers, placeholders, stale skill names, or generic unrelated cases remain.
-- The final response follows the four-heading order and stops at confirmation.
+- The final response follows the four-heading order (末节 `产物与下一步`) and includes the produced uploadable zip path; it does not present a chat gate.

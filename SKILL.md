@@ -9,9 +9,9 @@ description: Use when you need to design a new sayu 沙箱 skill or redesign an 
 >
 > **禁止外部搜索（除非用户显式点名对标）**：这是内部设计任务。**禁止**调用 `platform_tools_duckduckgo` / `platform_tools_browser_read`——仅当用户消息里**显式**出现「对标 / 竞品调研 / 查一下市面上」等字样才检索；「做一个 X skill」这类需求默认**一律不检索**，对标状态填 `exempt_with_reason`（完全内部）。每次多余检索都白吃一轮 LLM 预算。
 >
-> **禁止枚举文件系统 / 反复探路**：本 skill 目录结构固定且已知——契约在 `references/skill-design-proposal-contract.md`，脚手架/校验/打包在 `scripts/`（`scaffold_example_package.py` / `validate_design_package.py` / `pack_skill_package.py` / `pack_package.py`）。**禁止**用 `ls` / `find` 反复确认环境（每次都白吃一轮预算）。默认直路径不含任何探查：`cat references/skill-design-proposal-contract.md`（一次）→ `scaffold` → 写各文件（含 `target/` 目标 skill）→ `validate` → 呈现确认门 → 用户确认后 `pack_skill_package.py` 打可上传 zip。
+> **禁止枚举文件系统 / 反复探路**：本 skill 目录结构固定且已知——契约在 `references/skill-design-proposal-contract.md`，脚手架/校验/打包在 `scripts/`（`scaffold_example_package.py` / `validate_design_package.py` / `pack_skill_package.py` / `pack_package.py`）。**禁止**用 `ls` / `find` 反复确认环境（每次都白吃一轮预算）。默认直路径不含任何探查：`cat references/skill-design-proposal-contract.md`（一次）→ `scaffold` → 写各文件（含 `target/` 目标 skill）→ `validate` → **直接** `pack_skill_package.py` 打可上传 zip → 呈现结果（**无确认门、不停下等确认**）。
 >
-> **产物回流（关键，做错用户拿不到可用 skill）**：平台只回流 stdout 里的**单个真实文件**（`isfile` 为真）——打印目录不产卡。最终交付是**可上传的目标 skill zip**：用户在确认门选「打包为可上传的 skill 包」后，跑 `python scripts/pack_skill_package.py <包目录>`，它只打 `target/` 成**根级布局**（`manifest.json`/`SKILL.md`/`scripts/…` 在压缩包根）、固定时间戳的 zip，并把该 zip 的 `/uploads/...` 绝对路径打成 stdout 最后一行。这个 zip 即可直接被 sayu 上传/导入成 skill。沙箱**无 `zip` CLI**，只能用该脚本（stdlib zipfile）。
+> **产物回流（关键，做错用户拿不到可用 skill）**：平台只回流 stdout 里的**单个真实文件**（`isfile` 为真）——打印目录不产卡。最终交付是**可上传的目标 skill zip**：`validate` 通过后**直接**跑 `python scripts/pack_skill_package.py <包目录>`（**不设确认门、不等用户确认**），它只打 `target/` 成**根级布局**（`manifest.json`/`SKILL.md`/`scripts/…` 在压缩包根）、固定时间戳的 zip，并把该 zip 的 `/uploads/...` 绝对路径打成 stdout 最后一行。这个 zip 即可直接被 sayu 上传/导入成 skill。沙箱**无 `zip` CLI**，只能用该脚本（stdlib zipfile）。
 
 # Skill Design
 
@@ -38,8 +38,8 @@ This skill **designs and packages** the target skill (its real `manifest.json` +
 6. **Specify the workflow and tools.** Give every step inputs, action, stage output, validation, and failure handling in `target/SKILL.md`. Use `无` for judgment-only steps. External tools the target skill uses are declared as `platform_tools_*` slugs in `target/manifest.json` `dependencies`; each workflow row names the callable with an explicit `mode=` and satisfies the sandbox-script/artifact, web/browser, and media contracts in the reference.
 7. **Scaffold and write.** After research passes, run `python scripts/scaffold_example_package.py` with target extensions（可带 `--target-slug` / `--target-name`）。Fill the design record (`proposal/`, realistic `examples/`) **and** the real `target/` skill files from a domain-relevant case.
 8. **Validate.** Inspect rendered or reopened artifacts, replace manifest placeholders, and run `python scripts/validate_design_package.py <package>`（校验设计记录）。目标 skill 由第 10 步 `pack_skill_package.py` 硬校验（合法 manifest / entry_main 在包内 / SKILL.md 非空 / 无占位符）。
-9. **Present the confirmation gate.** Show `Skill 概述`, `工作流步骤与工具`, `最终交付示例文件`, and `确认门` in that order. Offer only `修改`, `停止`, or `打包为可上传的 skill 包`, then stop.
-10. **Package on confirmation.** 用户选「打包为可上传的 skill 包」后，run `python scripts/pack_skill_package.py <package>` —— 它只打 `target/` 成根级、固定时间戳的**可上传 skill zip**，打印它这**一个** `/uploads/...zip` 路径（这就是可直接使用的 skill 包）。若还需给人一份设计记录下载，可**先**跑 `pack_package.py`、**再**跑 `pack_skill_package.py`（保证 skill zip 路径是最后一行、被回流）。
+9. **Pack, then present the result — 无确认门.** `validate` 通过后**直接**执行第 10 步打包（同轮产出可上传 zip），再呈现结果，用 `Skill 概述`、`工作流步骤与工具`、`最终交付示例文件`、`产物与下一步` 四节。**不停下等确认**——用户在 sayu 端点点「挂载」时才把这个 zip 导入为**用户私有 skill**。（`proposal/confirmation-questions.md` 仍作为设计记录归档生成，但**不再是聊天流程的停止点**。）
+10. **Package (validate 通过即打包，无条件).** run `python scripts/pack_skill_package.py <package>` —— 它只打 `target/` 成根级、固定时间戳的**可上传 skill zip**，打印它这**一个** `/uploads/...zip` 路径（这就是可直接使用的 skill 包）。若还需给人一份设计记录下载，可**先**跑 `pack_package.py`、**再**跑 `pack_skill_package.py`（保证 skill zip 路径是最后一行、被回流）。
 
 ## Contract Gate
 
