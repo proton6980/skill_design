@@ -1,46 +1,51 @@
 ---
 name: skill-design
-description: Use when you need to design a new sayu 沙箱 skill or redesign an existing one, resolving workflow, tool contracts, resource minimality, realistic deliverables, version plan, and confirmation boundary — then emit the real uploadable target skill package (manifest.json + SKILL.md [+ scripts/]).
+description: Use when you need to design and package a new sayu 沙箱 skill (or redesign an existing one). Author a minimal, real, uploadable target skill (manifest.json + SKILL.md [+ scripts/]) and pack it into an uploadable zip — no design-record ceremony, no fabricated deliverables.
 ---
 
-> **Sandbox 环境说明 (sayu)**：本 skill 跑在离线 Python 3.11 沙箱，通过「运行脚本」(`platform_tools_run_script`) 工具执行——你传 `skill` 名 + `command`，工作目录已切到本 skill 根 `/workspace/skill_design/`，所有脚本用相对路径调用，**不要**用绝对路径。**可用**：纯标准库脚本，离线可跑，无需装包。**始终走本 skill 自带脚本**（`scaffold_example_package.py` 建包 / `validate_design_package.py` 校验设计记录 / `pack_skill_package.py` 打可上传 skill 包；`pack_package.py` 仅在需要给人下载整份设计记录时可选用），**不要**手拼 shell 逐个写文件（易在引号转义上炸）。中间产物可用 `/tmp/`。
+> **Sandbox 环境说明 (sayu)**：本 skill 跑在离线 Python 3.11 沙箱，通过「运行脚本」(`platform_tools_run_script`) 执行——传 `skill` 名 + `command`，工作目录已在本 skill 根 `/workspace/skill_design/`，脚本一律相对路径调用（`python scripts/x.py`），**不要**绝对路径。
 >
-> **读自带 references 用 `cat`，不要用 `read_document`**：本 skill 自带的契约/参考在 `/workspace/skill_design/references/`，用 `run_script` 的 `cat references/skill-design-proposal-contract.md` 读。`read_document` 只认用户上传目录，读自带文件**必被拒**（白烧一轮）。
+> **只走本 skill 自带的两个脚本**：`init_skill_package.py`（建目标 skill 工作目录 + 合法 manifest 骨架）、`pack_skill_package.py`（把 `target/` 打成可上传 zip，内含合法性硬校验）。**不要** `ls`/`find` 探路（目录固定），**不要** `read_document` 读自带文件，**不要** `platform_tools_duckduckgo`/`browser_read` 搜索（内部设计任务，除非用户显式点名对标）。每多一轮都白吃预算。
 >
-> **禁止外部搜索（除非用户显式点名对标）**：这是内部设计任务。**禁止**调用 `platform_tools_duckduckgo` / `platform_tools_browser_read`——仅当用户消息里**显式**出现「对标 / 竞品调研 / 查一下市面上」等字样才检索；「做一个 X skill」这类需求默认**一律不检索**，对标状态填 `exempt_with_reason`（完全内部）。每次多余检索都白吃一轮 LLM 预算。
->
-> **禁止枚举文件系统 / 反复探路**：本 skill 目录结构固定且已知——契约在 `references/skill-design-proposal-contract.md`，脚手架/校验/打包在 `scripts/`（`scaffold_example_package.py` / `validate_design_package.py` / `pack_skill_package.py` / `pack_package.py`）。**禁止**用 `ls` / `find` 反复确认环境（每次都白吃一轮预算）。默认直路径不含任何探查：`cat references/skill-design-proposal-contract.md`（一次）→ `scaffold` → 写各文件（含 `target/` 目标 skill）→ `validate` → **直接** `pack_skill_package.py` 打可上传 zip → 呈现结果（**无确认门、不停下等确认**）。
->
-> **产物回流（关键，做错用户拿不到可用 skill）**：平台只回流 stdout 里的**单个真实文件**（`isfile` 为真）——打印目录不产卡。最终交付是**可上传的目标 skill zip**：`validate` 通过后**直接**跑 `python scripts/pack_skill_package.py <包目录>`（**不设确认门、不等用户确认**），它只打 `target/` 成**根级布局**（`manifest.json`/`SKILL.md`/`scripts/…` 在压缩包根）、固定时间戳的 zip，并把该 zip 的 `/uploads/...` 绝对路径打成 stdout 最后一行。这个 zip 即可直接被 sayu 上传/导入成 skill。沙箱**无 `zip` CLI**，只能用该脚本（stdlib zipfile）。
+> **产物回流（关键）**：平台只回流 stdout 里**最后一个真实存在的单文件**（`isfile` 为真）的 `/uploads/...` 路径成文件卡——目录不产卡。最终交付就是 `pack_skill_package.py` 打出的**可上传 skill zip**，它把 zip 的 `/uploads/*.zip` 绝对路径打成最后一行。沙箱**无 `zip` CLI**，只能用该脚本（stdlib zipfile）。
 
 # Skill Design
 
-Design a decision-complete skill and its realistic delivery preview, then emit the real uploadable target skill package. Research the real work first, keep the target skill minimal, and make every tool call auditable.
+把用户的需求变成一个**最小、真实、可直接上传的目标 sayu skill**，并打包。产物只有一件事：一个根级布局的 skill zip（`manifest.json` + `SKILL.md` [+ 按需 `scripts/`]）。
 
-This skill **designs and packages** the target skill (its real `manifest.json` + `SKILL.md` [+ `scripts/`] under `target/`, zipped by `pack_skill_package.py` into an uploadable package). It **does not itself install, publish, register, or upload** that skill into sayu — 上传/建库/发布是带外步骤（平台在「挂载」时把这个 zip 导入为用户私有 skill）。
+本 skill **只设计并打包**目标 skill，**不**安装/发布/上传/注册它——那是带外步骤：用户在 sayu 端点「挂载」时，平台把这个 zip 导入为其**私有 skill**。
 
-## Required Boundaries
+## 工作流（默认 3-4 轮，直路径，无确认门）
 
-- Read `references/skill-design-proposal-contract.md` before writing a package — via `run_script` 的 `cat references/skill-design-proposal-contract.md`（**不要** `read_document`）。
-- Save packages only under `/uploads/skill-design/<target-skill-family>/<target-skill-name>/<YYYY-MM-DD>-<case-slug>/`.
-- `target/` 存**可上传的目标 skill 真实文件**（scaffold 已种合法 `target/manifest.json` 骨架）；`proposal/`、`examples/`、`previews/`、`working/` 是设计记录，**不进**可上传 zip。
-- Use the same fixed package for `全新 skill` and `重新设计已有 skill`; a redesign is not a change log.
-- Do not scaffold a full package until the use case, professional context, audience, deliverables, location, version, and preservation policy are clear.
-- If research status is `blocked`, stop before scaffolding a full package and report the blocker.
+1. **理解需求**（判断，无工具）：确定目标 skill 的**用途、触发场景、输入、输出格式**。redesign 时先看清当前 skill 再定下一版。想清楚它是**纯提示词 skill**（默认，只有 `SKILL.md`）还是**确需可执行脚本**（有明确的数据处理/产物构建逻辑才加 `scripts/`）。
+2. **建工作目录**：`python scripts/init_skill_package.py <slug> "<展示名>" "<一句话描述>"` —— 建 `<pkg>/target/` 并种一份合法 manifest 骨架，打印 `<pkg>` 路径与下一步。
+3. **写 `target/SKILL.md`**：目标 skill 的真实工作流入口（注入其运行时 system prompt），实质内容、无占位符。用 heredoc 避免引号转义：
+   ```
+   python - <<'PY'
+   open('<pkg>/target/SKILL.md','w',encoding='utf-8').write('''
+   ...目标 skill 的真实 SKILL.md 正文...
+   ''')
+   PY
+   ```
+   按需改 `target/manifest.json`（`dependencies` 填 `platform_tools_*` slug、`network_policy`、`secrets[]`），仅确需时加 `target/scripts/…` 或 `target/requirements.txt`。
+4. **打包**：`python scripts/pack_skill_package.py <pkg>` —— 只打 `target/` 成根级、固定时间戳的可上传 zip，硬校验（合法 manifest / `entry_main` 在包内 / 无占位符），打印其 `/uploads/*.zip` 路径回流。
+5. **简短呈现**：说清这个 skill **做什么**、**在什么场景触发**，末尾说明用户在 sayu 端点「挂载」即导入为私有 skill。**不编造交付示例文件**——提示词类 skill 没有「交付物文件」，别硬造。
 
-## Ordered Workflow
+## 目标 skill 的沙箱约束（写 `target/manifest.json` / `SKILL.md` 时遵守）
 
-1. **Ground and frame.** Confirm goal, trigger boundaries, inputs, final users, formats, location, version, and preservation from the user message, supplied materials, and active invocation state. **无需 `ls` / `find` 枚举文件系统**——目录结构已知。
-2. **Research before designing.** Examine user/local materials, the bundled contract, and existing sayu skills first. External web research (`platform_tools_duckduckgo`) is **default-skipped** for these internal tasks — use `对标状态：exempt_with_reason`（完全内部）unless the user explicitly asks for benchmarking or the target domain genuinely needs public workflow evidence, then use `completed`. Convert observations into transferable mechanisms with applicability conditions.
-3. **Choose mode and version.** For a redesign, inspect the complete current skill, preserve it, and propose the next two-part version. Put current state and `保留 / 调整 / 删除` decisions in the full proposal.
-4. **Minimize the target and author it.** The uploadable target consists of one substantive `target/SKILL.md` plus the sayu-required `target/manifest.json`（已种合法骨架，按设计细化 name/description/dependencies/network_policy/secrets/deliverable，**别动 kind/entry_main/runtime_type**——`runtime_type` 是沙箱运行时（只能 `python`/`node`/`shell`/`custom`，不是 skill 的性质），提示词 skill 保持骨架里的 `python`+`entry_main=SKILL.md`，**绝不要写 `prompt`/`md` 等非法值**）。Add `target/scripts/`, `target/references/`, `target/assets/`, or `target/requirements.txt` only when the minimality audit identifies its unique consumer and why it cannot be inlined or merged.
-5. **Decide the example strategy.** Choose `none`, `inline`, or `separate_resource`. Design-record files under `examples/` do not imply a target-skill example resource.
-6. **Specify the workflow and tools.** Give every step inputs, action, stage output, validation, and failure handling in `target/SKILL.md`. Use `无` for judgment-only steps. External tools the target skill uses are declared as `platform_tools_*` slugs in `target/manifest.json` `dependencies`; each workflow row names the callable with an explicit `mode=` and satisfies the sandbox-script/artifact, web/browser, and media contracts in the reference.
-7. **Scaffold and write.** After research passes, run `python scripts/scaffold_example_package.py` with target extensions（可带 `--target-slug` / `--target-name`）。Fill the design record (`proposal/`, realistic `examples/`) **and** the real `target/` skill files from a domain-relevant case.
-8. **Validate.** Inspect rendered or reopened artifacts, replace manifest placeholders, and run `python scripts/validate_design_package.py <package>`（校验设计记录）。目标 skill 由第 10 步 `pack_skill_package.py` 硬校验（合法 manifest / entry_main 在包内 / SKILL.md 非空 / 无占位符）。
-9. **Pack, then present the result — 无确认门.** `validate` 通过后**直接**执行第 10 步打包（同轮产出可上传 zip），再呈现结果，用 `Skill 概述`、`工作流步骤与工具`、`最终交付示例文件`、`产物与下一步` 四节。**不停下等确认**——用户在 sayu 端点点「挂载」时才把这个 zip 导入为**用户私有 skill**。（`proposal/confirmation-questions.md` 仍作为设计记录归档生成，但**不再是聊天流程的停止点**。）
-10. **Package (validate 通过即打包，无条件).** run `python scripts/pack_skill_package.py <package>` —— 它只打 `target/` 成根级、固定时间戳的**可上传 skill zip**，打印它这**一个** `/uploads/...zip` 路径（这就是可直接使用的 skill 包）。若还需给人一份设计记录下载，可**先**跑 `pack_package.py`、**再**跑 `pack_skill_package.py`（保证 skill zip 路径是最后一行、被回流）。
+目标 skill 同样跑在离线 Docker 沙箱 `/workspace/<slug>/`，由 `platform_tools_run_script` 驱动。硬约束：
 
-## Contract Gate
+- **合法 manifest 必填**：`slug`(`^[a-z][a-z0-9_-]{1,62}$`) / `kind=skill` / `name` / `version` / `runtime_type` / `entry_main=SKILL.md`。**`runtime_type` 只能是 `python`/`node`/`shell`/`custom`**（沙箱运行时，不是 skill 的性质）——提示词 skill 保持 `python`+`entry_main=SKILL.md`，**绝不要**写 `prompt`/`md` 等非法值（sayu 上传校验会拒；即便误写，后端导入也会归一，但别依赖）。
+- **最小化**：默认目标 skill **只有 `SKILL.md` + `manifest.json`**。只有当某段逻辑确需可执行代码（数据处理、产物构建、格式转换）时才加 `target/scripts/`；纯「整理/总结/改写/套模板输出文本」的能力**不需要任何脚本**，写在 `SKILL.md` 里即可。
+- **离线默认**：`network_policy` 默认 `none`（无外网）。仅当目标 skill 必须联网或需 pip 装包时才用 `open`，并同时给 `target/requirements.txt`。
+- **预装库免声明**：Python 3.11 + `python-docx`/`openpyxl`/`python-pptx`/`pypdf`/`pymupdf`/`Pillow`/`pandas`/`requests`/`lxml`/`beautifulsoup4`/`markdown`/`pdfplumber`/`reportlab`/`pdf2image`/`defusedxml`/`pypdfium2`，系统 `poppler-utils`/`qpdf`/`curl`。只有超出此清单才需 `requirements.txt`+`network_policy=open`。
+- **子工具声明**：目标 skill 要调用的 sayu 内建工具在 `manifest.dependencies` 里以 `platform_tools_*` slug 声明（`run_script`/`generate_media`/`duckduckgo`/`browser_read`/`browser_use`/`ocr_pdf`/`read_document`/`transcribe_audio`/`scheduled_task`…），并在 `SKILL.md` 的工作流里写明何时调、用什么 `mode`。联网型工具需目标 skill `network_policy=open`。
+- **密钥**：目标 skill 需要的密钥在 `manifest.secrets[]` 声明（`{key,label,required,doc}`，`key` 匹配 `^[A-Z_][A-Z0-9_]*$`），值由平台注入为容器 env，**不写进包**。
+- **单文件回流**：目标 skill 若产出多文件，其收尾脚本须先 zip 成单文件再打印 `/uploads/...` 路径（沙箱只回流单文件）。中间产物用 `/tmp/`。
 
-The reference is the single source of truth for exact Markdown table schemas, research statuses, redesign fields, package contents, target manifest and sample-case fields, tool contracts, validation rules, and final-response structure. Do not recreate those field inventories here.
+## 写好 `target/SKILL.md` 的要点
+
+- 开头一句 sandbox 说明（若目标 skill 有脚本：说明用 `run_script` 相对路径调用）。
+- 用途 + 触发/不触发边界，让运行时能自我约束。
+- 有序工作流：每步给输入、动作、（若调工具）工具与 `mode=`、产物、失败处理。纯判断步骤写「无工具」。
+- 实质内容、贴合用户请求的真实专业领域，无 `<占位符>`/`TODO`/`TBD`（打包会校验并拒绝残留占位符）。
